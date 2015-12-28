@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/foundation/6.1.0/foundation.min.css">
+    <style>
+      header{
+        margin-bottom: 20px;
+      }
+      .progress {
+        width: 100%;
+        height: 50px;
+      }
+      .progress-wrap {
+        background: #f80;
+        margin: 20px 0;
+        overflow: hidden;
+        position: relative;
+      }
+      .progress-wrap .progress-bar,
+      .progress-wrap .progress-mark {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      .progress-wrap .progress-bar{
+        background: #ddd;
+      }
+      .progress-wrap .progress-mark{
+        height: 50px;
+        width: 5px;
+        left: 50px;
+      }
+      .progress-wrap .progress-mark:hover{
+        cursor: pointer;
+      }
+
+      .progress-wrap .progress-mark.note{
+        background: #f08;
+      }
+      .progress-wrap .progress-mark.note:hover{
+        background: #C10067;
+      }
+
+      .progress-wrap .progress-mark.bookmark{
+        background: #80f;
+      }
+      .progress-wrap .progress-mark.bookmark:hover{
+        background: #4D0090;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="top-bar">
+        <div class="top-bar-left">
+          <ul class="dropdown menu" data-dropdown-menu>
+            <li class="menu-text">Action Caption</li>
+          </ul>
+        </div>
+        <div class="top-bar-right">
+          <ul class="menu">
+            <li role="menuitem"><a href="http://github.com" >Github</a></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <div class="column row">
+      <div id="youtubeSwitcher"></div>
+
+      <div class="row">
+        <div class="small-8 columns">
+          <div id="player"></div>
+
+        </div>
+        <div class="small-4 columns">
+          <table class="hover" style="width:100%">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Time</th>
+                <th>Label</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="bookmarks">
+            </tbody>
+          </table>
+
+          <div id="newBookmark">
+
+          </div>
+        </div>
+      </div>
+
+      <div class="progress-wrap progress" data-progress-percent="25">
+        <div class="progress-bar progress"></div>
+      </div>
+
+      <div id="notes"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/foundation/6.1.0/foundation.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mithril/0.2.1/mithril.min.js"></script>
+    <script>
+
+    Notes = {
+      init: function(){
+        this.notes = m.prop(
+          [
+            {seconds: 343, note: 'const keyword makes programming awkward'},
+            {seconds: 422, note: 'it\'s so broken you need a new language'},
+            {seconds: 587, note: 'Go source compiled in 8s'}
+          ]
+        );
+
+        this.drawMarks();
+      },
+      drawMarks: function(){
+        ProgressBar.removeProgressMarks('note');
+        this.notes().map(function(e){
+          ProgressBar.addProgressMark(e.seconds, 'note');
+        })
+      },
+      list: function(){
+        return this.notes;
+      },
+      create: function(comment){
+        ProgressBar.addProgressMark(YoutubePlayer.getPlayer().getCurrentTime(), 'note');
+        var newNote = {seconds: YoutubePlayer.getPlayer().getCurrentTime(), note: comment};
+        this.notes(this.notes().concat([newNote]));
+      },
+      remove: function(index){
+        var notes = this.notes().slice();
+        notes.splice(index, 1);
+        this.notes(notes);
+        this.drawMarks();
+      }
+    }
+
+    Bookmarks = {
+      init: function(){
+        this.bookmarks = m.prop(
+          [
+            {seconds: 470, label: 'Goals for Go'},
+            {seconds: 540, label: 'Compiler Demo'},
+            {seconds: 666, label: 'Go Design Principles'},
+            {seconds: 1025, label: 'Syntax Slides'},
+            {seconds: 1165, label: 'Program Structure'},
+            {seconds: 1261, label: 'Constants'},
+            {seconds: 1431, label: 'Values Types'}
+          ]
+        );
+
+        this.drawMarks();
+      },
+      drawMarks: function(){
+        ProgressBar.removeProgressMarks('bookmark');
+        this.bookmarks().map(function(e){
+          ProgressBar.addProgressMark(e.seconds, 'bookmark');
+        })
+      },
+      list: function(){
+        return this.bookmarks;
+      },
+      create: function(label){
+        ProgressBar.addProgressMark(YoutubePlayer.getPlayer().getCurrentTime(), 'bookmark');
+        var newBookmark = {seconds: YoutubePlayer.getPlayer().getCurrentTime(), label: label};
+        this.bookmarks(this.bookmarks().concat([newBookmark]));
+      },
+      remove: function(index){
+        var bookmarks = this.bookmarks().slice();
+        bookmarks.splice(index, 1);
+        this.bookmarks(bookmarks);
+        this.drawMarks();
+      }
+    }
+
+    NotesWidget = {
+      controller: function(){
+        Notes.init()
+        this.comment = m.prop('');
+
+        return {
+          notes: Notes.list(),
+          save: function(e){
+            e.preventDefault();
+            Notes.create(this.comment());
+          }.bind(this),
+          comment: this.comment,
+          removeNote: function(i){
+            Notes.remove(i);
+          }
+        };
+      },
+      view: function(ctrl){
+        return m('div', [
+          ctrl.notes().map(function(note, i){
+            return m('div.callout', [
+              m('a', {onclick: function(){YoutubePlayer.seek(note.seconds);}}, note.seconds),
+              m('p', note.note),
+              m('a', {onclick: function(){ ctrl.removeNote(i); }}, 'delete'),
+
+            ]);
+          }),
+          m('div.callout.secondary', [
+            m('label', [
+              'New Note',
+              m('input[type=text]', {name:'comment', placeholder: 'it\'s like a jungle sometimes it makes me wonder how i keep from going under', onchange: m.withAttr("value", ctrl.comment), value: ctrl.comment()})
+              ]
+            ),
+            m('button.button[type="button"]', {onclick: ctrl.save}, 'Note!')
+          ])
+        ]);
+      }
+    }
+
+    BookmarksWidget = {
+      controller: function(){
+        Bookmarks.init();
+
+        return {
+          bookmarks: Bookmarks.list(),
+          removeBookmark: function(i){
+            Bookmarks.remove(i);
+          }
+        };
+      },
+      view: function(ctrl){
+        return ctrl.bookmarks().map(
+          function(bookmark, i){
+            return m('tr', [
+                m('td', i+1),
+                m('td', m('a', {onclick: function(){YoutubePlayer.seek(bookmark.seconds);}}, bookmark.seconds)),
+                m('td', bookmark.label),
+                m('td', m('a', {onclick: function(){ctrl.removeBookmark(i);}}, '✗')),
+              ]);
+          }
+        );
+      }
+    }
+
+    NewBookmarkWidget = {
+      controller: function(){
+        this.label = m.prop('');
+
+        return {
+          save: function(e){
+            e.preventDefault();
+            Bookmarks.create(this.label());
+          }.bind(this),
+          label: this.label
+        };
+      },
+      view: function(ctrl){
+        return m('div.callout.secondary', [
+          m('label', [
+            'New Bookmark',
+            m('input[type=text]', {name:'label', placeholder: 'Ah! The element of surprise', onchange: m.withAttr("value", ctrl.label), value: ctrl.label()})
+            ]
+          ),
+          m('button.button[type="button"]', {onclick: ctrl.save}, 'Bookmark!')
+        ])
+      }
+    }
+
+    YoutubeSwitcher = {
+      controller: function(){
+        this.videoId = m.prop('');
+
+        return {
+          changeVideo: function(){
+            console.log(this.videoId);
+            YoutubePlayer.getPlayer().loadVideoById(this.videoId);
+          }.bind(this),
+          videoId: this.videoId
+        }
+      },
+      view: function(ctrl){
+        return m('.input-group', [
+          m('input.input-group-field[type="text"]', {placeholder:'youtube video id (e.g. dQw4w9WgXcQ)', onchange: m.withAttr("value", ctrl.videoId), value: ctrl.videoId()}),
+          m('.input-group-button', m('button.button[type="button"]', {onclick: ctrl.changeVideo}, 'Switch'))
+
+          ])
+      }
+    }
+
+    ProgressBar = {
+      init: function(player){
+        $(window).resize(this.moveProgressBar.bind(this));
+        $(window).resize(this.moveProgressMarks.bind(this));
+
+        this.player = player;
+        this.progressWrap = '.progress-wrap'
+        this.progressBar = '.progress-bar'
+        this.progressInterval = null;
+        this.progressPercent = 0;
+        this.progressMarks = [];
+      },
+      addProgressMark: function(seconds, className){
+        var newProgressMark = $('<div class="progress-mark"></div>').addClass(className);
+
+        var percent = seconds / this.player.getDuration();
+        var offsetLeft = percent * this.getWrapWidth();
+        newProgressMark.css('left', offsetLeft);
+
+        newProgressMark.click(function(){
+          this.player.seekTo(seconds)
+        }.bind(this));
+
+        this.progressMarks.push({seconds: seconds, element: newProgressMark});
+        $(this.progressWrap).append(newProgressMark);
+      },
+      moveProgressMarks: function(){
+        this.progressMarks.map(function(e){
+          var percent = e.seconds / this.player.getDuration();
+          var offsetLeft = percent * this.getWrapWidth();
+          $(e.element).css('left', offsetLeft);
+        }.bind(this));
+      },
+      moveProgressBar: function(percent){
+        if(percent !== undefined && isFinite(percent)) {
+          this.progressPercent = percent;
+        }
+
+        var progressTotal = this.progressPercent * this.getWrapWidth();
+        var animationLength = 100;
+
+        $('.progress-bar').stop().animate({
+          left: progressTotal
+        }, animationLength);
+      },
+      removeProgressMarks: function(className){
+        console.log($(this.progressWrap).find('.progress-mark.'+className));
+        $(this.progressWrap).find('.progress-mark.'+className).remove();
+      },
+      getWrapWidth: function(){
+        return $(this.progressWrap).width();
+      },
+      track: function(){
+        var percent = this.player.getCurrentTime() / this.player.getDuration();
+        $('.progress-bar').data('progress-percent', percent);
+        this.moveProgressBar(percent);
+      },
+      startTracking: function(){
+        this.clearTracking();
+        this.progressInterval = setInterval(this.track.bind(this), 1000);
+      },
+      clearTracking: function(){
+        clearInterval(this.progressInterval);
+      }
+    }
+
+    YoutubePlayer = {
+      init: function(videoId){
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        window.onYouTubeIframeAPIReady = function() {
+          this.player = new YT.Player('player', {
+            height: '390',
+            width: '640',
+            videoId: videoId,
+            events: {
+              'onReady': this.onPlayerReady.bind(this),
+              'onStateChange': this.onPlayerStateChange.bind(this)
+            }
+          });
+        }.bind(this);
+      },
+      getPlayer: function(){
+        return this.player;
+      },
+      onPlayerReady: function(event) {
+        ProgressBar.init(this.player);
+
+        // Delayed Mount
+        m.mount(document.getElementById("notes"), NotesWidget);
+        m.mount(document.getElementById("bookmarks"), BookmarksWidget);
+        m.mount(document.getElementById("newBookmark"), NewBookmarkWidget);
+      },
+      onPlayerStateChange: function(event) {
+        ProgressBar.track();
+
+        if (event.data == YT.PlayerState.PLAYING) {
+          console.log('start');
+          ProgressBar.startTracking();
+        } else if (event.data != YT.PlayerState.PLAYING) {
+          ProgressBar.clearTracking();
+        }
+      },
+      stopVideo: function() {
+        this.player.stopVideo();
+      },
+      seek: function(seconds) {
+        this.player.seekTo(seconds);
+      }
+    }
+
+    YoutubePlayer.init('rKnDgT73v8s');
+    m.mount(document.getElementById("youtubeSwitcher"), YoutubeSwitcher);
+
+    </script>
+  </body>
+</html>
